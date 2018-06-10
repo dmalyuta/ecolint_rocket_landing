@@ -11,9 +11,16 @@ from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 
 class Rocket:
-    def __init__(self):
+    def __init__(self,noisy=False):
         """
         Defines parameters of the rocket landing problem.
+        
+        Parameters
+        ----------
+        noisy : bool
+            If `True`, inject noise into the dynamics. This makes the open-loop
+            application of the nominal landing problem solution fail to soft-
+            land the rocket.
         """
         # Environment parameters
         self.g = 9.81 # [m/s^2] Acceleration due to gravity
@@ -24,6 +31,13 @@ class Rocket:
         self.v_0 = 100. # [m/s] Initial velocity
         self.I_sp = 225 # [s] Rocket engine specific impulse
         
+        self.noisy = noisy
+        if self.noisy:
+            # Noise model parameters
+            self.n_T = 2000. # [N] Thrust noise. T_actual\in[T_des-n_T,T_des+n_T]
+            self.noise_freq = 20. # [Hz] Frequency of noise changing
+            self.noise_t_last = -1/self.noise_freq
+
     def setLandingBurnStartHeight(self,H_1):
         """
         Sets the landing burn start height and internall computes the
@@ -98,9 +112,16 @@ class Rocket:
         """
         h,v,m = state[0],state[1],state[2]
         dhdt = -v
-        T = self.thrust(h) # Determine rocket engine thrust
-        dvdt = self.g-T/m
-        dmdt = -T/(self.I_sp*self.g)
+        T_desired = self.thrust(h) # Determine rocket engine thrust
+        if self.noisy and time >= self.noise_t_last+1/self.noise_freq:
+            self.T_error = np.random.uniform(-self.n_T,self.n_T)
+            self.noise_t_last = time
+#            print T_desired, T_error
+        elif not self.noisy and time==0:
+            self.T_error = 0.
+        T_actual = T_desired+self.T_error
+        dvdt = self.g-T_actual/m
+        dmdt = -T_actual/(self.I_sp*self.g)
         dxdt = np.array([dhdt,dvdt,dmdt])
         return dxdt
     
@@ -133,7 +154,7 @@ class Rocket:
         return h-self.H_1
     burnEvent.direction = -1. # Event triggers when going below H_1
         
-rocket = Rocket()
+rocket = Rocket(noisy=True)
 
 def simulateForHeight(H_1):
     """
@@ -176,7 +197,7 @@ def simulateForHeight(H_1):
     
     return fuel_used,burn_thrust,burn_time,time_history,height_history
 
-burn_start_heights = np.linspace(100,300,10)
+burn_start_heights = [150] #np.linspace(100,300,10)
 fuel_used,burn_thrust,burn_time,sim_time,sim_height = [],[],[],[],[]
 for height in burn_start_heights:
     _fuel,_burn_thrust,_burn_time,_sim_t,_sim_h = simulateForHeight(height)
@@ -191,7 +212,7 @@ for height in burn_start_heights:
 fig = plt.figure(1)
 plt.clf()
 ax = fig.add_subplot(111)
-for i in range(len(t)):
+for i in range(len(burn_start_heights)):
     ax.plot(sim_time[i],sim_height[i],label=("%d"%(burn_start_heights[i])))
 ax.set_ylabel('Height [m]')
 ax.set_xlabel('Time [s]')
