@@ -30,7 +30,7 @@ class Rocket:
         self.H_0 = 300. # [m] Initial height
         self.v_0 = 100. # [m/s] Initial velocity
         self.I_sp = 225 # [s] Rocket engine specific impulse
-        
+
         self.noisy = noisy
         if self.noisy:
             # Noise model parameters
@@ -110,9 +110,16 @@ class Rocket:
         dxdt : array
             Time derivative of the state.
         """
-        h,v,m = state[0],state[1],state[2]
+        h_i,v_i,m_i,h,v,m = state[0],state[1],state[2],state[3],state[4],state[5]
+        
+        # Ideal system's dynamics
+        dhidt = -v_i
+        T_desired = self.thrust(h_i) # Determine rocket engine thrust
+        dvidt = self.g-T_desired/m_i
+        dmidt = -T_desired/(self.I_sp*self.g)
+        
+        # Real system's dynamics
         dhdt = -v
-        T_desired = self.thrust(h) # Determine rocket engine thrust
         if self.noisy and time >= self.noise_t_last+1/self.noise_freq:
             self.T_error = np.random.uniform(-self.n_T,self.n_T)
             self.noise_t_last = time
@@ -122,7 +129,7 @@ class Rocket:
         T_actual = T_desired+self.T_error
         dvdt = self.g-T_actual/m
         dmdt = -T_actual/(self.I_sp*self.g)
-        dxdt = np.array([dhdt,dvdt,dmdt])
+        dxdt = np.array([dhidt,dvidt,dmidt,dhdt,dvdt,dmdt])
         return dxdt
     
     def ascentEvent(self,time,state):
@@ -141,7 +148,7 @@ class Rocket:
         v : float
             Rocket velocity (positive down).
         """
-        v = state[1]
+        v = state[4]
         return v
     ascentEvent.direction = -1. # Event triggers when starting to go up
     ascentEvent.terminal = True # Integration will stop once going up
@@ -150,10 +157,10 @@ class Rocket:
         """
         Indicates the start of the burn event.
         """
-        h = state[0]
+        h = state[3]
         return h-self.H_1
     burnEvent.direction = -1. # Event triggers when going below H_1
-        
+
 rocket = Rocket(noisy=True)
 
 def simulateForHeight(H_1):
@@ -173,7 +180,9 @@ def simulateForHeight(H_1):
     
     # Simulate the dynamics
     t_f = 100.
-    x_0 = np.array([rocket.H_0,rocket.v_0,rocket.m_0])
+    x_0 = np.array([rocket.H_0,rocket.v_0,rocket.m_0, # Ideal system
+                    rocket.H_0,rocket.v_0,rocket.m_0 # Real system
+                    ])
     
     state = solve_ivp(fun = rocket.dynamics,
                       t_span = (0,t_f),
@@ -185,9 +194,9 @@ def simulateForHeight(H_1):
     t = state.t
 #    t_burn = state.t_events[0]
 #    t_ascent = state.t_events[1]
-    h = state.y[0]
+    h = state.y[3]
 #    v = state.y[1]
-    m = state.y[2]
+    m = state.y[5]
     
     fuel_used = m[0]-m[-1]
     burn_thrust = rocket.T
