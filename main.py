@@ -7,6 +7,7 @@ D. Malyuta -- ACL, University of Washington
 
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 
 class Rocket:
@@ -40,15 +41,26 @@ class Rocket:
         # Velocity at burn start [m/s]
         self.v_1 = np.sqrt(v0**2+2*g*(H0-H1))
         v1 = self.v_1
+        # Find the thrust and burn time numerically by solving for the
+        # necesarsy conditions they must satisfy
+        alpha = 1/(Isp*g)
+        def thrustBurnTimeNecessaryConditions(x):
+            T,tb = x[0],x[1]
+            cond1 = g*tb+1/alpha*np.log(1-alpha*T*tb/m0)+v1
+            cond2 = H1+0.5*g*tb**2+tb/alpha+m0/(alpha**2*T)*np.log(1-alpha*T*tb/m0)
+            cond = np.array([cond1,cond2])
+            return cond
+        # Initial guess from rocket dynamics with constant mass (i.e. double integrator)
+        T_guess = m0*v1**2/(2*H1)+m0*g
+        tb_guess = v1/(T_guess/m0-g)
+        guess = np.array([T_guess,tb_guess])
+        sol = fsolve(thrustBurnTimeNecessaryConditions, guess)
+        # Burn thrust [N]
+        self.T = sol[0]
+        # Burn time [s]
+        self.t_b = sol[1]
         # Final mass [s], according to Tsiolkovsky rocket equation
         self.m_f = m0*np.exp(-v1/(Isp*g))
-        mf = self.m_f
-        # Burn thrust [N]
-        self.T = m0*v1*Isp*g+Isp**2*g**2*(mf-m0)
-        self.T = 1.1385315*(self.T+np.sqrt(self.T**2+2*g**2*Isp*H1*(m0-mf)))/(2*H1)
-        T = self.T
-        # Burn time [s]
-        self.t_b = Isp*g*(m0-mf)/T
         
     def thrust(self,height):
         """
@@ -92,10 +104,9 @@ class Rocket:
         dxdt = np.array([dhdt,dvdt,dmdt])
         return dxdt
     
-    def touchdownEvent(self,time,state):
+    def ascentEvent(self,time,state):
         """
-        Indicates the event of rocket contact with the ground when the output
-        goes from positive to negative.
+        Indicates the event of rocket has started to go up.
         
         Parameters
         ----------
@@ -106,17 +117,17 @@ class Rocket:
             
         Returns
         -------
-        h : float
-            Height of rocket about ground
+        v : float
+            Rocket velocity (positive down).
         """
-        h = state[0]
-        return h
-    touchdownEvent.direction = -1. # Event triggers when going below ground
-    touchdownEvent.terminal = True # Integration will stop at touchdown
+        v = state[1]
+        return v
+    ascentEvent.direction = -1. # Event triggers when starting to go up
+    ascentEvent.terminal = True # Integration will stop once going up
     
     def burnEvent(self,time,state):
         """
-        Indicates the start of the burn event
+        Indicates the start of the burn event.
         """
         h = state[0]
         return h-self.H_1
@@ -132,13 +143,13 @@ x_0 = np.array([rocket.H_0,rocket.v_0,rocket.m_0])
 state = solve_ivp(fun = rocket.dynamics,
                   t_span = (0,t_f),
                   y0 = x_0,
-                  events = [rocket.burnEvent,rocket.touchdownEvent],
+                  events = [rocket.burnEvent,rocket.ascentEvent],
                   max_step = 0.001)
 
 # Extract simulation results
 t = state.t
-t_burn = np.asscalar(state.t_events[0])
-t_touchdown = np.asscalar(state.t_events[1])
+t_burn = state.t_events[0]
+t_ascent = state.t_events[1]
 h = state.y[0]
 v = state.y[1]
 m = state.y[2]
