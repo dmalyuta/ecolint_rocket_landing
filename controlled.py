@@ -8,7 +8,19 @@ D. Malyuta -- ACL, University of Washington
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
+import matplotlib
 import matplotlib.pyplot as plt
+
+import progressbar # sudo -H pip install progressbar2
+
+# Progress bar appearance
+pb_widgets=[progressbar.Percentage(),' ',
+            progressbar.Bar(),' (',progressbar.ETA(),')']
+
+# LaTeX font in plots
+matplotlib.rcParams.update({'font.size': 20})
+matplotlib.rc('font',**{'family':'serif'})
+matplotlib.rc('text', usetex=True)
 
 class Rocket:
     def __init__(self,noisy=False,controlled=False):
@@ -124,9 +136,12 @@ class Rocket:
         T_adjust = 0.
         if self.controlled:
             v_error = v_i-v
-            u_tilde = 1.*v_error
-            alpha = 1/(self.I_sp*self.g)
-            T_adjust = m*(g-u_tilde/alpha)-T_desired
+#            u_tilde = 1.*v_error
+#            alpha = 1/(self.I_sp*self.g)
+#            T_adjust = m*(g-u_tilde/alpha)-T_desired
+            proportional_gain = 2000.
+            T_tilde = proportional_gain*v_error
+            T_adjust = m*(g-T_tilde)-T_desired
         
         # Real system's dynamics
         dhdt = -v
@@ -138,7 +153,6 @@ class Rocket:
                 # to burn
                 self.T_error = 0.
             self.noise_t_last = time
-#            print T_desired, T_error
         elif not self.noisy and time==0:
             self.T_error = 0.
         T_actual = T_desired+T_adjust+self.T_error
@@ -176,9 +190,7 @@ class Rocket:
         return h-self.H_1
     burnEvent.direction = -1. # Event triggers when going below H_1
 
-rocket = Rocket(noisy=False,controlled=False)
-
-def simulateForHeight(H_1):
+def simulate(rocket):
     """
     Simulate the rocket landing problem for a particular burn start height H_1.
     
@@ -191,7 +203,7 @@ def simulateForHeight(H_1):
     -------
     TODO
     """
-    rocket.setLandingBurnStartHeight(H_1)
+    rocket.setLandingBurnStartHeight(150.)
     
     # Simulate the dynamics
     t_f = 100.
@@ -206,65 +218,28 @@ def simulateForHeight(H_1):
                       max_step = 0.001)
     
     # Extract simulation results
-    t = state.t
-#    t_burn = state.t_events[0]
-#    t_ascent = state.t_events[1]
     h = state.y[3]
-#    v = state.y[1]
-    m = state.y[5]
     
-    fuel_used = m[0]-m[-1]
-    burn_thrust = rocket.T
-    burn_time = rocket.t_b
-    time_history = t
-    height_history = h
+    final_height = h[-1]
     
-    return fuel_used,burn_thrust,burn_time,time_history,height_history
+    return final_height
 
-burn_start_heights = np.linspace(100,300,5)
-fuel_used,burn_thrust,burn_time,sim_time,sim_height = [],[],[],[],[]
-for height in burn_start_heights:
-    _fuel,_burn_thrust,_burn_time,_sim_t,_sim_h = simulateForHeight(height)
-    fuel_used.append(_fuel)
-    burn_thrust.append(_burn_thrust)
-    burn_time.append(_burn_time)
-    sim_time.append(_sim_t)
-    sim_height.append(_sim_h)
+trial_count = 50
+final_height_without_control, final_height_with_control = [], []
+for _ in progressbar.progressbar(range(trial_count), widgets=pb_widgets):
+    rocket_without_control = Rocket(noisy=True,controlled=False)
+    final_height_without_control.append(simulate(rocket_without_control))
+    rocket_with_control = Rocket(noisy=True,controlled=True)
+    final_height_with_control.append(simulate(rocket_with_control))
 
 #%% Plot result
     
 fig = plt.figure(1)
 plt.clf()
 ax = fig.add_subplot(111)
-for i in range(len(burn_start_heights)):
-    ax.plot(sim_time[i],sim_height[i],label=("%d"%(burn_start_heights[i])))
-ax.set_ylabel('Height [m]')
-ax.set_xlabel('Time [s]')
+ax.hist([final_height_without_control,final_height_with_control],
+        label=['Uncontrolled','Controlled'])
+ax.set_xlabel('Height at hover [m]')
+ax.set_ylabel('Bin count')
 ax.legend()
-plt.autoscale(tight=True)
-plt.tight_layout()
-plt.show()
-
-# TODO: two y-axis plot for fuel_used, T separately
-fig = plt.figure(2)
-plt.clf()
-ax = fig.add_subplot(111)
-ax.plot(burn_start_heights,fuel_used)
-ax.plot(burn_start_heights,burn_thrust)
-ax.set_ylabel('Fuel used [kg]')
-ax.set_xlabel('Burn start height [m]')
-plt.autoscale(tight=True)
-plt.tight_layout()
-plt.show()
-
-# TODO: two y-axis plot for fuel_used, T separately
-fig = plt.figure(3)
-plt.clf()
-ax = fig.add_subplot(111)
-#ax.plot(burn_start_heights,burn_thrust)
-ax.plot(burn_start_heights,burn_time)
-ax.set_ylabel('Burn time [s]')
-ax.set_xlabel('Burn start height [m]')
-plt.autoscale(tight=True)
-plt.tight_layout()
 plt.show()
