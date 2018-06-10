@@ -134,41 +134,92 @@ class Rocket:
     burnEvent.direction = -1. # Event triggers when going below H_1
         
 rocket = Rocket()
-rocket.setLandingBurnStartHeight(100.)
 
-# Simulate the dynamics
-t_f = 100.
-x_0 = np.array([rocket.H_0,rocket.v_0,rocket.m_0])
+def simulateForHeight(H_1):
+    """
+    Simulate the rocket landing problem for a particular burn start height H_1.
+    
+    Parameters
+    ----------
+    H_1 : float
+        Burn start height.
+        
+    Returns
+    -------
+    TODO
+    """
+    rocket.setLandingBurnStartHeight(H_1)
+    
+    # Simulate the dynamics
+    t_f = 100.
+    x_0 = np.array([rocket.H_0,rocket.v_0,rocket.m_0])
+    
+    state = solve_ivp(fun = rocket.dynamics,
+                      t_span = (0,t_f),
+                      y0 = x_0,
+                      events = [rocket.burnEvent,rocket.ascentEvent],
+                      max_step = 0.001)
+    
+    # Extract simulation results
+    t = state.t
+#    t_burn = state.t_events[0]
+#    t_ascent = state.t_events[1]
+    h = state.y[0]
+#    v = state.y[1]
+    m = state.y[2]
+    
+    fuel_used = m[0]-m[-1]
+    burn_thrust = rocket.T
+    burn_time = rocket.t_b
+    time_history = t
+    height_history = h
+    
+    return fuel_used,burn_thrust,burn_time,time_history,height_history
 
-state = solve_ivp(fun = rocket.dynamics,
-                  t_span = (0,t_f),
-                  y0 = x_0,
-                  events = [rocket.burnEvent,rocket.ascentEvent],
-                  max_step = 0.001)
+burn_start_heights = np.linspace(100,300,10)
+fuel_used,burn_thrust,burn_time,sim_time,sim_height = [],[],[],[],[]
+for height in burn_start_heights:
+    _fuel,_burn_thrust,_burn_time,_sim_t,_sim_h = simulateForHeight(height)
+    fuel_used.append(_fuel)
+    burn_thrust.append(_burn_thrust)
+    burn_time.append(_burn_time)
+    sim_time.append(_sim_t)
+    sim_height.append(_sim_h)
 
-# Extract simulation results
-t = state.t
-t_burn = state.t_events[0]
-t_ascent = state.t_events[1]
-h = state.y[0]
-v = state.y[1]
-m = state.y[2]
-
-# Plot result
+#%% Plot result
+    
 fig = plt.figure(1)
 plt.clf()
-ax = fig.add_subplot(311)
-ax.plot(t,h)
+ax = fig.add_subplot(111)
+for i in range(len(t)):
+    ax.plot(sim_time[i],sim_height[i],label=("%d"%(burn_start_heights[i])))
 ax.set_ylabel('Height [m]')
-plt.autoscale(tight=True)
-ax = fig.add_subplot(312)
-ax.plot(t,v)
-ax.set_ylabel('Velocity [m/s]')
-plt.autoscale(tight=True)
-ax = fig.add_subplot(313)
-ax.plot(t,m)
 ax.set_xlabel('Time [s]')
-ax.set_ylabel('Mass [kg]')
+ax.legend()
+plt.autoscale(tight=True)
+plt.tight_layout()
+plt.show()
+
+# TODO: two y-axis plot for fuel_used, T separately
+fig = plt.figure(2)
+plt.clf()
+ax = fig.add_subplot(111)
+ax.plot(burn_start_heights,fuel_used)
+ax.plot(burn_start_heights,burn_thrust)
+ax.set_ylabel('Fuel used [kg]')
+ax.set_xlabel('Burn start height [m]')
+plt.autoscale(tight=True)
+plt.tight_layout()
+plt.show()
+
+# TODO: two y-axis plot for fuel_used, T separately
+fig = plt.figure(3)
+plt.clf()
+ax = fig.add_subplot(111)
+#ax.plot(burn_start_heights,burn_thrust)
+ax.plot(burn_start_heights,burn_time)
+ax.set_ylabel('Burn time [s]')
+ax.set_xlabel('Burn start height [m]')
 plt.autoscale(tight=True)
 plt.tight_layout()
 plt.show()
