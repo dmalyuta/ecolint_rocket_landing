@@ -36,7 +36,7 @@ def simulate(rocket):
     final_height : float
         The height at which the rocket began ascending (i.e. the hover height).
     """
-    rocket.setLandingBurnStartHeight(150.)
+    rocket.setLandingBurnStartHeight(20e3)
     
     # Simulate the dynamics
     t_f = 100.
@@ -57,7 +57,7 @@ def simulate(rocket):
     
     return final_height
 
-trial_count = 1000
+trial_count = 200
 final_height_without_control, final_height_with_control = [], []
 for _ in progressbar.progressbar(range(trial_count), widgets=pb_widgets):
     rocket_without_control = Rocket(noisy=True,controlled=False)

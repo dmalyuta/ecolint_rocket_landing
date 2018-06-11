@@ -23,10 +23,11 @@ class Rocket:
         self.g = 9.81 # [m/s^2] Acceleration due to gravity
         
         # Rocket parameters
-        self.m_0 = 1905. # [kg] Initial mass
-        self.H_0 = 300. # [m] Initial height
-        self.v_0 = 100. # [m/s] Initial velocity
-        self.I_sp = 225 # [s] Rocket engine specific impulse
+        self.m_0 = 26e3 # [kg] Initial mass
+        self.H_0 = 25e3 # [m] Initial height
+        self.v_0 = 800. # [m/s] Initial velocity
+        self.I_sp = 282. # [s] Rocket engine specific impulse
+        self.T_1eng_max = 845e3 # [N] Maximum thrust of one rocket engine (Merlin 1D)
 
         self.noisy = noisy
         if self.noisy:

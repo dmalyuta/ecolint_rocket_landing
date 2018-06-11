@@ -56,7 +56,7 @@ def simulateForHeight(rocket,H_1):
                       t_span = (0,t_f),
                       y0 = x_0,
                       events = [rocket.burnEvent,rocket.ascentEvent],
-                      max_step = 0.001)
+                      max_step = 0.01)
     
     # Extract simulation results
     t = state.t
@@ -71,7 +71,7 @@ def simulateForHeight(rocket,H_1):
     
     return fuel_used,burn_thrust,burn_time,time_history,height_history
 
-burn_start_heights = np.linspace(100,300,20)
+burn_start_heights = np.linspace(5e3,24e3,20)
 fuel_used,burn_thrust,burn_time,sim_time,sim_height = [],[],[],[],[]
 for i in progressbar.progressbar(range(len(burn_start_heights)), widgets=pb_widgets):
     rocket = Rocket(noisy=False,controlled=False)
@@ -108,14 +108,18 @@ ax1.spines['right'].set_color(colors[1])
 ax1.spines['left'].set_color(colors[0]) 
 ax1.tick_params(axis='y', colors=colors[0])
 ax1.yaxis.label.set_color(colors[0])
+ax1.set_xlabel('Burn start height $H_1$ [m]')
 ax2 = fig.add_subplot(111, sharex=ax1, frameon=False)
 ax2.plot(burn_start_heights,np.array(burn_thrust)/1e3,color=colors[1])
 ax2.yaxis.tick_right()
 ax2.yaxis.set_label_position("right")
 ax2.tick_params(axis='y', colors=colors[1])
 ax2.yaxis.label.set_color(colors[1])
+plt.axhline(y=rocket.T_1eng_max/1e3, color='gray',linestyle='--')
+plt.axhline(y=3*rocket.T_1eng_max/1e3, color='gray',linestyle='--')
+ax2.text(burn_start_heights[0]*1.05,rocket.T_1eng_max/1e3*1.06,'1 engine',color='gray')
+ax2.text(burn_start_heights[0]*1.05,3*rocket.T_1eng_max/1e3*0.94,'3 engines',color='gray')
 ax2.set_ylabel('Thrust $T$ [kN]')
-ax1.set_xlabel('Burn start height $H_1$ [m]')
 plt.autoscale(tight=True)
 plt.tight_layout()
 plt.show()
@@ -131,6 +135,7 @@ ax1.spines['right'].set_color(colors[1])
 ax1.spines['left'].set_color(colors[0]) 
 ax1.tick_params(axis='y', colors=colors[0])
 ax1.yaxis.label.set_color(colors[0])
+ax1.set_xlabel('Burn start height $H_1$ [m]')
 ax2 = fig.add_subplot(111, sharex=ax1, frameon=False)
 ax2.plot(burn_start_heights,np.array(burn_thrust)/1e3,color=colors[1])
 ax2.yaxis.tick_right()
@@ -138,7 +143,10 @@ ax2.yaxis.set_label_position("right")
 ax2.tick_params(axis='y', colors=colors[1])
 ax2.yaxis.label.set_color(colors[1])
 ax2.set_ylabel('Thrust $T$ [kN]')
-ax1.set_xlabel('Burn start height $H_1$ [m]')
+plt.axhline(y=rocket.T_1eng_max/1e3, color='gray',linestyle='--')
+plt.axhline(y=3*rocket.T_1eng_max/1e3, color='gray',linestyle='--')
+ax2.text(burn_start_heights[0]*1.05,rocket.T_1eng_max/1e3*1.06,'1 engine',color='gray')
+ax2.text(burn_start_heights[0]*1.05,3*rocket.T_1eng_max/1e3*0.94,'3 engines',color='gray')
 plt.autoscale(tight=True)
 plt.tight_layout()
 plt.show()
