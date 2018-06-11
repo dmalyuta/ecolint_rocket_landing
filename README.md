@@ -1,6 +1,7 @@
 # Ecolint Rocket Landing
 
-This repository contains the code used to generate the plots in my presentation
+This repository contains the code used to generate the plots in my
+[presentation](https://docs.google.com/presentation/d/1pt-C16-qTEGr-wWMeIDPDRWSl-iWz_vhpcA7v-F84yg/edit#slide=id.g3bbe7cacff_0_0)
 at Ecolint. You can run:
 
 - `explore_initial_height.py`: analyzes the effect of landing burn start height
